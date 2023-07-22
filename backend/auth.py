@@ -37,7 +37,7 @@ def check_token(token: str) -> bool:
 def get_user_from_token(token: str) -> dict:
     """Returns user data if token is valid, raises error otherwise."""
     if not check_token(token):
-        raise AuthenticationError
+        raise AuthenticationError(f"token {token} is not valid.")
     username, _ = token.split("~")
     return active_users[username]
 
@@ -50,15 +50,17 @@ def login_or_signup(username: str, password: str, **kwargs) -> dict:
     if user and user["password_hash"] == hash:
         active_users[username] = dict(user, token_hex=hex, **kwargs)
     elif user:
-        raise AuthenticationError("Username is taken, and password doesn't match.")
+        raise AuthenticationError("Username is taken and password doesn't match.")
     else:
-        active_users[username] = dict(password_hash=hash, token_hex=hex, **kwargs)
+        active_users[username] = dict(name=username, password_hash=hash, token_hex=hex, **kwargs)
     return {"__access_token__": f"{username}~{hex}"}
 
 
 async def receive_json(websocket: WebSocket) -> tuple[dict, dict]:
     """Receives JSON data from websocket, validates token, and returns data."""
     data: dict = await websocket.receive_json()
+    if "__access_token__" not in data:
+        raise AuthenticationError(f"Data {data} is missing access token.")
     token = data.pop("__access_token__")
     user = get_user_from_token(token)
     return data, user
