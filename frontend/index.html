@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+
+        const { useState, useEffect } = React;
+
+        function Chat({ token }) {
+            const [username, setUsername] = useState();
+            const [messages, setMessages] = useState([]);
+            const [messageInput, setMessageInput] = useState("");
+            const [socket, setSocket] = useState(null);
+
+            // Parse username from token
+            useEffect(() => {
+                const [parsedUsername] = token.split('~');
+                setUsername(parsedUsername);
+            }, [token])
+
+            // Connect to socket
+            useEffect(() => {
+                const newSocket = new WebSocket("ws://localhost:8000/ws");
+
+                newSocket.onopen = () => {
+                    newSocket.send(token);
+                };
+
+                newSocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    setMessages(prev => [...prev, data]);
+                };
+
+                setSocket(newSocket);
+
+                return () => newSocket.close();
+
+            }, [token]);
+
+            const submitForm = (ev) => {
+                ev.preventDefault();
+                const timestamp = Date.now();
+                const message = {
+                    sender: username,
+                    message: messageInput,
+                    timestamp: timestamp
+                };
+                socket.send(JSON.stringify(message));
+                setMessageInput("");
+            }
+
+            return (
+                <div className="container mt-5">
+                    <div className="row">
+                        <div className="col-12">
+                            {messages.map(msg =>
+                                <div key={msg.timestamp}>
+                                    {msg.sender}: {msg.message}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="row mt-3">
+                        <div className="col-12">
+                            <form onSubmit={submitForm}>
+                                <input
+                                    className="form-control"
+                                    value={messageInput}
+                                    onChange={ev => setMessageInput(ev.target.value)}
+                                />
+                                <button className="btn btn-primary mt-3">
+                                    Send
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        function Login({ setToken }) {
+            const [username, setUsername] = useState("");
+            const [password, setPassword] = useState("");
+            const [error, setError] = useState("");
+
+            const submit = async (ev) => {
+                ev.preventDefault();
+
+                // Create a FormData object
+                const formData = new FormData();
+
+                // Append username and password
+                formData.append('username', username);
+                formData.append('password', password);
+
+                // Make POST request and send form data
+                const response = await fetch("http://localhost:8000/login", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.detail) {
+                    setError(data.detail);
+                } else {
+                    setToken(data.__access_token__);
+                }
+            }
+
+            return (
+                <div className="container mt-5">
+                    <div className="row">
+                        <div className="col-12">
+                            <div className="jumbotron">
+                                <h1 className="display-4">Login</h1>
+                                <p className="lead">
+                                    Questa è un'applicazione di prova. Non c'è bisogno di registrarsi da nessuna parte.
+                                    Basta mettere un nome e una password qualsiasi per entrare,
+                                    a patto di ricordarsi la password o cambiare nome per entrare una prossima volta.
+                                </p>
+                            </div>
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            <form onSubmit={submit}>
+                                <input
+                                    type="text"
+                                    className="form-control mb-3"
+                                    placeholder="Username"
+                                    value={username}
+                                    onChange={ev => setUsername(ev.target.value)}
+                                />
+                                <input
+                                    type="password"
+                                    className="form-control mb-3"
+                                    placeholder="Password"
+                                    value={password}
+                                    onChange={ev => setPassword(ev.target.value)}
+                                />
+                                <button className="btn btn-primary btn-block" style={{ width: '100%' }}>
+                                    Login
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
+        function App() {
+            const [token, setToken] = useState(null);
+
+            if (token) {
+                return <Chat token={token} />
+            } else {
+                return <Login setToken={setToken} />
+            }
+        }
+
+        const root = document.getElementById('root');
+        ReactDOM.render(<App />, root);
+
+    </script>
+
+</body>
+
+</html>
