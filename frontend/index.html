@@ -30,7 +30,7 @@
 
             // Connect to socket
             useEffect(() => {
-                const newSocket = new WebSocket("ws://localhost:8000/ws");
+                const newSocket = new WebSocket("ws://0.0.0.0:8000/ws");
 
                 newSocket.onopen = () => {
                     newSocket.send(token);
@@ -104,7 +104,7 @@
                 formData.append('password', password);
 
                 // Make POST request and send form data
-                const response = await fetch("http://localhost:8000/login", {
+                const response = await fetch("/login", {
                     method: "POST",
                     body: formData
                 });

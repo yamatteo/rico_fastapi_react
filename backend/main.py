@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated
+from typing import Annotated, Union
 
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, WebSocket
@@ -8,8 +8,9 @@ from pydantic import BaseModel
 
 try:
     import auth
-except:
-    import backend.auth as auth
+except ModuleNotFoundError:
+    from backend import auth
+
 
 app = FastAPI()
 
@@ -45,14 +46,14 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
     
-    async def _send(self, data, websocket: WebSocket, timeout: float|None=None):
+    async def _send(self, data, websocket: WebSocket, timeout: Union[float, None]=None):
         coro =  websocket.send_json(data)
         if timeout:
             await asyncio.wait_for(coro, timeout)
         else:
             await coro
 
-    async def _repeat_send(self, data, websocket: WebSocket, timeout: float|None=None):
+    async def _repeat_send(self, data, websocket: WebSocket, timeout: Union[float, None]=None):
         while True:
             try:
                 await self._send(data, websocket, timeout=timeout)
@@ -60,14 +61,14 @@ class ConnectionManager:
             except asyncio.TimeoutError:
                 await asyncio.sleep(0.1)
 
-    async def narrowcast(self, data, websocket: WebSocket, timeout: float|None=None, cycle_timeout: float=1):
+    async def narrowcast(self, data, websocket: WebSocket, timeout: Union[float, None]=None, cycle_timeout: float=1):
         coro =  self._repeat_send(data, websocket, timeout=cycle_timeout)
         if timeout:
             await asyncio.wait_for(coro, timeout)
         else:
             await coro
 
-    async def broadcast(self, data, timeout:float|None = None, cycle_timeout: float=1):
+    async def broadcast(self, data, timeout:Union[float, None] = None, cycle_timeout: float=1):
         for websocket in self.active_connections.values():
             task = asyncio.create_task(self.narrowcast(data, websocket, timeout=timeout, cycle_timeout=cycle_timeout))
 
@@ -95,7 +96,3 @@ async def websocket_endpoint(websocket: WebSocket):
 
     async for message in websocket.iter_json():
         await manager.broadcast(message, timeout=5)
-        
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)

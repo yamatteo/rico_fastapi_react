@@ -2,4 +2,5 @@ fastapi
 httpx
 pytest
 pytest-asyncio
+python-multipart
 uvicorn[standard]

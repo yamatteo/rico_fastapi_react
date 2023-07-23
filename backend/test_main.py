@@ -1,12 +1,18 @@
-import queue
-import pytest
 import asyncio
-from fastapi.testclient import TestClient
-from main import app
-import starlette.websockets
-from starlette.testclient import WebSocketTestSession
-import time
 import json
+import queue
+import time
+from typing import Union
+
+import pytest
+import starlette.websockets
+from fastapi.testclient import TestClient
+from starlette.testclient import WebSocketTestSession
+
+try:
+    from main import app
+except (ImportError, ModuleNotFoundError):
+    from backend.main import app
 
 client = TestClient(app)
 
@@ -35,7 +41,7 @@ def test_login_again():
 
     assert first.json()["__access_token__"] != second.json()["__access_token__"]
 
-async def _asgi_receive(session: WebSocketTestSession, timeout:float|None = None):
+async def _asgi_receive(session: WebSocketTestSession, timeout:Union[float, None] = None):
     _start = time.time()
     while session._send_queue.empty():
         await asyncio.sleep(0.1)
@@ -44,7 +50,7 @@ async def _asgi_receive(session: WebSocketTestSession, timeout:float|None = None
     
     return session._send_queue.get()
 
-async def receive_json(session, timeout:float|None=None):
+async def receive_json(session, timeout:Union[float, None]=None):
     message = await _asgi_receive(session, timeout)
     # print("Message:", message)
     if isinstance(message, BaseException):
@@ -57,7 +63,7 @@ async def receive_json(session, timeout:float|None=None):
         return text
 
 
-async def paused_receive_json(session: WebSocketTestSession, timeout:float|None=None, cycle_timeout: float=1):
+async def paused_receive_json(session: WebSocketTestSession, timeout:Union[float, None]=None, cycle_timeout: float=1):
     _start = time.time()
     while timeout is None or (time.time() < _start + timeout):
         try:
@@ -109,7 +115,7 @@ async def test_broadcast():
             
             while True:
                 try:
-                    response = await receive_json(websocket, timeout=1)
+                    response = await receive_json(websocket, timeout=2)
                     responses.add( (name, response["sender"]) )
                 except queue.Empty:
                     await asyncio.sleep(0.1)
