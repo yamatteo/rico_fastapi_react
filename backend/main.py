@@ -1,11 +1,15 @@
 import asyncio
 from typing import Annotated
 
-import auth
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+try:
+    import auth
+except:
+    import backend.auth as auth
 
 app = FastAPI()
 
